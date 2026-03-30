@@ -1,0 +1,3 @@
+[submodule "DJIR_SDK"]
+	path = DJIR_SDK
+	url = https://github.com/ConstantRobotics/DJIR_SDK

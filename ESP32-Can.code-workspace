@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../DJIR_SDK"
+		},
+		{
+			"path": "../4D"
+		}
+	],
+	"settings": {}
+}
