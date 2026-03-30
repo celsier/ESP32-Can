@@ -167,8 +167,42 @@ void setup() {
 void loop() {
     M5.update();
     twai_message_t can_rx_msg; while (twai_receive(&can_rx_msg, 0) == ESP_OK) last_can_rx_time = millis();
-    
     bool is_m = (millis() - last_can_rx_time < 1000);
+
+    // Serial Command Parsing
+    // Format: CAN:XX:YY:DDDDDDDD\n (XX=cmdSet, YY=cmdID, DDDDDDDD=hex data)
+    if (Serial.available()) {
+        String line = Serial.readStringUntil('\n');
+        line.trim();
+        if (line.startsWith("CAN:")) {
+            int firstColon = line.indexOf(':');
+            int secondColon = line.indexOf(':', firstColon + 1);
+            int thirdColon = line.indexOf(':', secondColon + 1);
+            if (firstColon != -1 && secondColon != -1 && thirdColon != -1) {
+                uint8_t cSet = (uint8_t) strtol(line.substring(firstColon + 1, secondColon).c_str(), NULL, 16);
+                uint8_t cID = (uint8_t) strtol(line.substring(secondColon + 1, thirdColon).c_str(), NULL, 16);
+                String dataStr = line.substring(thirdColon + 1);
+                size_t dLen = dataStr.length() / 2;
+                uint8_t dBuf[16];
+                for (size_t i = 0; i < dLen && i < 16; i++) {
+                    String byteStr = dataStr.substring(i * 2, i * 2 + 2);
+                    dBuf[i] = (uint8_t) strtol(byteStr.c_str(), NULL, 16);
+                }
+                
+                // If we are MASTER, send directly. If REMOTE, forward via ESP-NOW.
+                if (is_m) {
+                    sendCANPacket(cSet, cID, dBuf, dLen);
+                    M5.Display.fillRect(0, 20, M5.Display.width(), 20, TFT_PURPLE);
+                    M5.Display.setTextColor(TFT_WHITE);
+                    M5.Display.setTextDatum(top_left);
+                    M5.Display.drawString("SER CMD TX", 5, 24);
+                } else {
+                    dispatchWireless(cSet, cID, dBuf, dLen);
+                }
+            }
+        }
+    }
+
     static bool was_m = false;
     if (is_m != was_m) {
         was_m = is_m;
